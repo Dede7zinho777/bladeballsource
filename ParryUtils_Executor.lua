@@ -1,131 +1,87 @@
 --[[
-    PARRY SYSTEM - UTILITIES MODULE (EXECUTOR EDITION)
-    For use with multi-loadstring setup
-    
-    Place on GitHub and load via URLS.UTILS
-    Requires _G.ParryConfig to be set before loading
+    PARRY SYSTEM - UTILITÁRIOS (XENO EDITION)
 ]]
 
-local Config = _G.ParryConfig or error("[PARRY] Config not found in _G.ParryConfig")
+local Config = _G.ParryConfig or error("[PARRY] Config não encontrado")
 local Utils = {}
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Player = Players.LocalPlayer
 
--- Safe reference retrieval
+-- Função segura para encontrar filhos
 local function SafeWaitForChild(parent, name, timeout)
     timeout = timeout or 5
     if not parent then return nil end
-    return parent:FindFirstChild(name) or (pcall(function() return parent:WaitForChild(name, timeout) end) and parent:FindFirstChild(name)) or nil
+    local child = parent:FindFirstChild(name)
+    if child then return child end
+    local success, result = pcall(function()
+        return parent:WaitForChild(name, timeout)
+    end)
+    return success and result or nil
 end
 
--- Cached service references
+-- Referências em cache
 local Balls = SafeWaitForChild(workspace, "Balls", 5)
 local Remotes = SafeWaitForChild(ReplicatedStorage, "Remotes", 5)
 local ParryRemote = Remotes and SafeWaitForChild(Remotes, "ParryButtonPress", 5) or nil
 
+if Config.Debug then
+    print("[PARRY] Balls encontrado: " .. tostring(Balls ~= nil))
+    print("[PARRY] ParryRemote encontrado: " .. tostring(ParryRemote ~= nil))
+end
+
 -- ============================================
--- VERIFICATION FUNCTIONS
+-- VERIFICAÇÕES
 -- ============================================
 
 function Utils:VerifyBall(Ball)
-    --[[ 
-        Validates ball instance:
-        - Must be a BasePart
-        - Must be in Balls folder
-        - Must have realBall attribute set to true
-    ]]
-    
-    if typeof(Ball) ~= "Instance" then
-        return false
-    end
-    
-    if not Ball:IsA("BasePart") then
-        return false
-    end
-    
-    if Balls and not Ball:IsDescendantOf(Balls) then
-        return false
-    end
-    
-    if Ball:GetAttribute("realBall") ~= true then
-        return false
-    end
-    
+    if typeof(Ball) ~= "Instance" then return false end
+    if not Ball:IsA("BasePart") then return false end
+    if Balls and not Ball:IsDescendantOf(Balls) then return false end
+    if Ball:GetAttribute("realBall") ~= true then return false end
     return true
 end
 
 function Utils:IsTarget()
-    --[[
-        Checks if player character is currently the target
-        Target is indicated by a Highlight instance in character
-    ]]
-    
-    if not Player or not Player.Character then
-        return false
-    end
-    
+    if not Player or not Player.Character then return false end
     local Highlight = Player.Character:FindFirstChild("Highlight")
     return Highlight ~= nil
 end
 
 -- ============================================
--- REMOTE EXECUTION
+-- EXECUTAR PARRY
 -- ============================================
 
 function Utils:Parry()
-    --[[
-        Triggers parry by firing ParryButtonPress remote
-        Handles errors gracefully
-    ]]
-    
     if not ParryRemote then
-        if Config.Debug then
-            warn("[PARRY] ParryButtonPress remote not found")
-        end
+        if Config.Debug then warn("[PARRY] ParryButtonPress não encontrado") end
         return false
     end
     
     local Success = pcall(function()
-        ParryRemote:Fire()
+        ParryRemote:FireServer()  -- Alguns jogos usam FireServer
+        -- ParryRemote:Fire()     -- Outros usam Fire
     end)
     
     if not Success and Config.Debug then
-        warn("[PARRY] Failed to fire ParryButtonPress remote")
+        warn("[PARRY] Falha ao executar parry")
     end
     
     return Success
 end
 
 -- ============================================
--- PHYSICS CALCULATIONS
+-- CÁLCULOS FÍSICOS
 -- ============================================
 
 function Utils:CalculateVelocity(OldPos, NewPos, TimeDelta)
-    --[[
-        Calculate ball velocity from position delta
-        Safe division with zero-check
-    ]]
-    
-    if TimeDelta <= 0 then
-        return 0
-    end
-    
-    local Distance = (OldPos - NewPos).Magnitude
-    return Distance / TimeDelta
+    if TimeDelta <= 0 then return 0 end
+    return (OldPos - NewPos).Magnitude / TimeDelta
 end
 
 function Utils:PredictImpactTime(Distance, Velocity)
-    --[[
-        Predict time until ball impact
-        Returns math.huge if velocity is zero (stationary ball)
-    ]]
-    
-    if Velocity <= 0 then
-        return math.huge
-    end
-    
+    if Velocity <= 0 then return math.huge end
     return Distance / Velocity
 end
 
