@@ -1,32 +1,16 @@
---[[
-    ROBLOX PARRY SYSTEM - MULTI-LOADSTRING EXECUTOR EDITION
-    
-    This file shows how to load the Parry System from GitHub using raw URLs.
-    Each component loads independently, allowing for easy updates without re-executing.
-    
-    SETUP INSTRUCTIONS:
-    
-    1. Fork/create a GitHub repo and upload these 4 files:
-       - ParryConfig_Executor.lua
-       - ParryUtils_Executor.lua
-       - ParryUI_Executor.lua
-       - ParryMain_Executor.lua
-    
-    2. Get the RAW URL for each file (click "Raw" button on GitHub)
-    3. Replace the URLs below with your versions
-    4. Copy THIS ENTIRE FILE into your executor
-    5. Execute
-    
-    EXAMPLE RAW URLS:
-    CONFIG: https://raw.githubusercontent.com/YOUR_USERNAME/ParrySystem/main/ParryConfig_Executor.lua
-    UTILS:  https://raw.githubusercontent.com/YOUR_USERNAME/ParrySystem/main/ParryUtils_Executor.lua
-    UI:     https://raw.githubusercontent.com/YOUR_USERNAME/ParrySystem/main/ParryUI_Executor.lua
-    MAIN:   https://raw.githubusercontent.com/YOUR_USERNAME/ParrySystem/main/ParryMain_Executor.lua
-]]
+-- ============================================
+-- SISTEMA DE PARRY - VERSÃO CORRIGIDA
+-- ============================================
 
--- ============================================
--- CONFIGURATION: UPDATE THESE URLS
--- ============================================
+-- 1. VERIFICAÇÃO DO HTTPSERVICE
+local HttpService = game:GetService("HttpService")
+if not HttpService.HttpEnabled then
+    pcall(function()
+        HttpService.HttpEnabled = true
+    end)
+end
+
+-- 2. URLS CORRETAS (já configuradas)
 local URLS = {
     CONFIG = "https://raw.githubusercontent.com/Dede7zinho777/bladeballsource/refs/heads/main/ParryConfig_Executor.lua",
     UTILS = "https://raw.githubusercontent.com/Dede7zinho777/bladeballsource/refs/heads/main/ParryUtils_Executor.lua",
@@ -34,60 +18,80 @@ local URLS = {
     MAIN = "https://raw.githubusercontent.com/Dede7zinho777/bladeballsource/refs/heads/main/ParryMain_Executor.lua",
 }
 
--- ============================================
--- HTTP REQUEST HELPER
--- ============================================
-local function LoadFromURL(url)
-    local Success = false
-    local Content = nil
+-- 3. FUNÇÃO PARA BAIXAR COM RETRY
+local function LoadFromURL(url, retries)
+    retries = retries or 3
+    local lastError = nil
     
-    -- Try using HttpService (Xeno, Synapse, etc.)
-    pcall(function()
-        local HttpService = game:GetService("HttpService")
-        if HttpService.HttpEnabled then
-            Content = HttpService:GetAsync(url)
-            Success = true
+    for attempt = 1, retries do
+        local success, content = pcall(function()
+            return HttpService:GetAsync(url)
+        end)
+        
+        if success then
+            return content
+        else
+            lastError = content
+            if attempt < retries then
+                wait(0.5 * attempt)  -- Espera progressiva
+            end
         end
-    end)
-    
-    if not Success then
-        error("[PARRY] Failed to load from URL: " .. url)
     end
     
-    return Content
+    error("[PARRY] Failed to load after " .. retries .. " attempts: " .. tostring(lastError))
 end
 
--- ============================================
--- LOAD & EXECUTE MODULES
--- ============================================
-print("[PARRY] Loading modules from GitHub...")
+-- 4. INICIALIZAR SISTEMA
+print("[PARRY] 🔄 Loading Parry System...")
 
--- Load config
+-- Criar tabela única para o sistema
+if not _G.ParrySystem then
+    _G.ParrySystem = {}
+end
+
+-- Carregar Config
 local ConfigScript = LoadFromURL(URLS.CONFIG)
 local Config = loadstring(ConfigScript)()
-print("[PARRY] ✓ Config loaded")
+if not Config then
+    error("[PARRY] ❌ Failed to load Config")
+end
+_G.ParrySystem.Config = Config
+print("[PARRY] ✅ Config loaded")
 
--- Load utils (requires config in global scope)
+-- Carregar Utils
 local UtilsScript = LoadFromURL(URLS.UTILS)
-_G.ParryConfig = Config
+_G.ParrySystem.Config = Config  -- Config precisa estar disponível
 local Utils = loadstring(UtilsScript)()
-print("[PARRY] ✓ Utils loaded")
+if not Utils then
+    error("[PARRY] ❌ Failed to load Utils")
+end
+_G.ParrySystem.Utils = Utils
+print("[PARRY] ✅ Utils loaded")
 
--- Load UI (requires config in global scope)
+-- Carregar UI
 local UIScript = LoadFromURL(URLS.UI)
-_G.ParryConfig = Config
+_G.ParrySystem.Config = Config
 local UI = loadstring(UIScript)()
-print("[PARRY] ✓ UI loaded")
+if not UI then
+    error("[PARRY] ❌ Failed to load UI")
+end
+_G.ParrySystem.UI = UI
+print("[PARRY] ✅ UI loaded")
 
--- Load main (requires config, utils, ui in global scope)
+-- Carregar Main
 local MainScript = LoadFromURL(URLS.MAIN)
-_G.ParryConfig = Config
-_G.ParryUtils = Utils
-_G.ParryUI = UI
-loadstring(MainScript)()
-print("[PARRY] ✓ Main system loaded")
+_G.ParrySystem.Config = Config
+_G.ParrySystem.Utils = Utils
+_G.ParrySystem.UI = UI
+local Main = loadstring(MainScript)()
+if not Main then
+    error("[PARRY] ❌ Failed to load Main")
+end
+_G.ParrySystem.Main = Main
+print("[PARRY] ✅ Main system loaded")
 
 print("[PARRY] ========================================")
-print("[PARRY] PARRY SYSTEM LOADED")
-print("[PARRY] Press P to toggle")
+print("[PARRY] ✅ SISTEMA DE PARRY ATIVADO!")
+print("[PARRY] 📌 Pressione P para ativar/desativar")
+print("[PARRY] 🔧 Debug: " .. (Config.Debug and "ON" or "OFF"))
 print("[PARRY] ========================================")
