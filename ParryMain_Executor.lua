@@ -1,41 +1,31 @@
 --[[
-    ROBLOX PARRY SYSTEM - MAIN LOOP (EXECUTOR EDITION)
-    For use with multi-loadstring setup
-    
-    Place on GitHub and load via URLS.MAIN
-    Requires _G.ParryConfig, _G.ParryUtils, _G.ParryUI to be set before loading
-    
-    Usage:
-    1. Load ParryConfig
-    2. Load ParryUtils (with Config in _G)
-    3. Load ParryUI (with Config in _G)
-    4. Load this file (with Config, Utils, UI in _G)
+    PARRY SYSTEM - PRINCIPAL (XENO EDITION)
 ]]
 
--- ============================================
--- DEPENDENCY RESOLUTION
--- ============================================
-local Config = _G.ParryConfig or error("[PARRY] Config not found - load ParryConfig first")
-local Utils = _G.ParryUtils or error("[PARRY] Utils not found - load ParryUtils first")
-local UI = _G.ParryUI or error("[PARRY] UI not found - load ParryUI first")
+local Config = _G.ParryConfig or error("[PARRY] Config não encontrado")
+local Utils = _G.ParryUtils or error("[PARRY] Utils não encontrado")
+local UI = _G.ParryUI or error("[PARRY] UI não encontrado")
 
--- ============================================
--- SERVICES & REFERENCES
--- ============================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
-if not Player then
-    error("[PARRY] LocalPlayer not found - run in-game")
-end
+if not Player then error("[PARRY] Player não encontrado") end
 
--- Safe reference retrieval
+-- ============================================
+-- REFERÊNCIAS
+-- ============================================
+
 local function SafeWaitForChild(parent, name, timeout)
     timeout = timeout or 5
     if not parent then return nil end
-    return parent:FindFirstChild(name) or (pcall(function() return parent:WaitForChild(name, timeout) end) and parent:FindFirstChild(name)) or nil
+    local child = parent:FindFirstChild(name)
+    if child then return child end
+    local success, result = pcall(function()
+        return parent:WaitForChild(name, timeout)
+    end)
+    return success and result or nil
 end
 
 local Balls = SafeWaitForChild(workspace, "Balls", 5)
@@ -43,28 +33,23 @@ local Remotes = SafeWaitForChild(ReplicatedStorage, "Remotes", 5)
 local ParryRemote = Remotes and SafeWaitForChild(Remotes, "ParryButtonPress", 5) or nil
 
 if Config.Debug then
-    print("[PARRY] Service references initialized")
-    print("[PARRY] Balls folder: " .. (Balls and Balls.Name or "NOT FOUND"))
-    print("[PARRY] ParryRemote: " .. (ParryRemote and ParryRemote.Name or "NOT FOUND"))
+    print("[PARRY] Balls: " .. (Balls and Balls.Name or "NÃO ENCONTRADO"))
+    print("[PARRY] ParryRemote: " .. (ParryRemote and ParryRemote.Name or "NÃO ENCONTRADO"))
 end
 
 -- ============================================
--- STATE MANAGEMENT
+-- ESTADO
 -- ============================================
+
 local ActiveBalls = {}
 local SystemEnabled = true
 local Connections = {}
 
 -- ============================================
--- BALL TRACKING
+-- RASTREAMENTO DE BOLAS
 -- ============================================
 
 local function TrackBall(Ball)
-    --[[
-        Registers a new ball and begins tracking its movement
-        Calculates velocity and impact time on each position update
-    ]]
-    
     if not Utils:VerifyBall(Ball) then return end
     
     local BallData = {
@@ -79,11 +64,9 @@ local function TrackBall(Ball)
     
     ActiveBalls[Ball] = BallData
     
-    if Config.Debug then
-        print("[PARRY] Ball spawned: " .. Ball.Name)
-    end
+    if Config.Debug then print("[PARRY] Bola detectada: " .. Ball.Name) end
     
-    -- =========== POSITION CHANGE DETECTION ===========
+    -- Monitorar posição
     local PositionConn = Ball:GetPropertyChangedSignal("Position"):Connect(function()
         if not ActiveBalls[Ball] then return end
         if not Utils:IsTarget() then return end
@@ -94,28 +77,24 @@ local function TrackBall(Ball)
         local Distance = (Ball.Position - CameraFocus).Magnitude
         local TimeDelta = tick() - BallData.OldTick
         
-        -- Update velocity every frame threshold
         if TimeDelta >= Config.VelocityUpdateInterval then
             BallData.LastVelocity = (BallData.OldPosition - Ball.Position).Magnitude / TimeDelta
             BallData.OldTick = tick()
             BallData.OldPosition = Ball.Position
         end
         
-        -- Predict impact time
         if BallData.LastVelocity > 0 then
             BallData.PredictedImpact = Distance / BallData.LastVelocity
         end
         
-        -- Update UI
         UI:UpdateBallInfo(Distance, BallData.LastVelocity, BallData.PredictedImpact)
         
-        -- PARRY TRIGGER
+        -- TRIGGER PARRY
         if BallData.PredictedImpact <= Config.ParryThreshold then
             if Utils:Parry() then
                 UI:FlashParry()
-                
                 if Config.Debug then
-                    print("[PARRY] TRIGGERED - Impact in " .. string.format("%.3f", BallData.PredictedImpact) .. "s")
+                    print("[PARRY] ⚡ PARRY ATIVADO! Impacto em " .. string.format("%.3f", BallData.PredictedImpact) .. "s")
                 end
             end
         end
@@ -123,21 +102,13 @@ local function TrackBall(Ball)
     
     BallData.Connections.Position = PositionConn
     
-    -- =========== DESTRUCTION DETECTION ===========
+    -- Monitorar destruição
     local AncestryConn = Ball.AncestryChanged:Connect(function(_, Parent)
         if Parent == nil then
-            -- Ball destroyed - cleanup
-            if BallData.Connections.Position then
-                BallData.Connections.Position:Disconnect()
-            end
-            if BallData.Connections.Ancestry then
-                BallData.Connections.Ancestry:Disconnect()
-            end
+            if BallData.Connections.Position then BallData.Connections.Position:Disconnect() end
+            if BallData.Connections.Ancestry then BallData.Connections.Ancestry:Disconnect() end
             ActiveBalls[Ball] = nil
-            
-            if Config.Debug then
-                print("[PARRY] Ball destroyed: " .. Ball.Name)
-            end
+            if Config.Debug then print("[PARRY] Bola destruída: " .. Ball.Name) end
         end
     end)
     
@@ -145,83 +116,62 @@ local function TrackBall(Ball)
 end
 
 -- ============================================
--- BALL SPAWN MONITORING
+-- MONITORAR SPAWN DE BOLAS
 -- ============================================
 
-local BallMonitor = nil
 if Balls then
-    BallMonitor = Balls.ChildAdded:Connect(function(Ball)
+    local BallMonitor = Balls.ChildAdded:Connect(function(Ball)
         TrackBall(Ball)
     end)
     table.insert(Connections, BallMonitor)
-    
-    if Config.Debug then
-        print("[PARRY] Ball monitor started")
-    end
+    if Config.Debug then print("[PARRY] Monitor de bolas ativo") end
 end
 
 -- ============================================
--- CHARACTER RESPAWN HANDLING
+-- RESPAWN DO PERSONAGEM
 -- ============================================
 
-local CharRespawnConn = Player.CharacterAdded:Connect(function(NewCharacter)
-    -- Clear active balls on respawn
+local CharRespawnConn = Player.CharacterAdded:Connect(function()
     for Ball, BallData in pairs(ActiveBalls) do
-        if BallData.Connections.Position then
-            BallData.Connections.Position:Disconnect()
-        end
-        if BallData.Connections.Ancestry then
-            BallData.Connections.Ancestry:Disconnect()
-        end
+        if BallData.Connections.Position then BallData.Connections.Position:Disconnect() end
+        if BallData.Connections.Ancestry then BallData.Connections.Ancestry:Disconnect() end
     end
     ActiveBalls = {}
-    
-    if Config.Debug then
-        print("[PARRY] Character respawned - cleared ball tracking")
-    end
+    if Config.Debug then print("[PARRY] Personagem reviveu - bolas limpas") end
 end)
-
 table.insert(Connections, CharRespawnConn)
 
 -- ============================================
--- KEYBOARD INPUT
+-- TECLA PARA ATIVAR/DESATIVAR
 -- ============================================
 
 local KeyInputConn = Player:GetMouse().KeyDown:Connect(function(Key)
     if Key:lower() == Config.ToggleKey:lower() then
         SystemEnabled = not SystemEnabled
         UI:SetStatus(SystemEnabled and "ACTIVE" or "DISABLED")
-        
-        if Config.Debug then
-            print("[PARRY] System toggled: " .. (SystemEnabled and "ON" or "OFF"))
-        end
+        if Config.Debug then print("[PARRY] Sistema " .. (SystemEnabled and "ATIVADO" or "DESATIVADO")) end
     end
 end)
-
 table.insert(Connections, KeyInputConn)
 
 -- ============================================
--- INITIALIZATION
+-- INICIALIZAR
 -- ============================================
 
 UI:Init()
 
-if Config.Debug then
-    print("[PARRY] ========================================")
-    print("[PARRY] PARRY SYSTEM INITIALIZED")
-    print("[PARRY] Press " .. Config.ToggleKey .. " to toggle")
-    print("[PARRY] Debug mode: ENABLED")
-    print("[PARRY] ========================================")
-end
+print("[PARRY] ========================================")
+print("[PARRY] ✅ SISTEMA DE PARRY ATIVADO!")
+print("[PARRY] 📌 Pressione " .. Config.ToggleKey .. " para ativar/desativar")
+print("[PARRY] ========================================")
 
 -- ============================================
--- CLEANUP FUNCTION
+-- LIMPEZA
 -- ============================================
 
 local function Cleanup()
-    print("[PARRY] Cleaning up system...")
+    print("[PARRY] 🧹 Limpando sistema...")
     
-    -- Disconnect all connections
     for _, Connection in ipairs(Connections) do
         if Connection and Connection.Connected then
             Connection:Disconnect()
@@ -229,7 +179,6 @@ local function Cleanup()
     end
     Connections = {}
     
-    -- Cleanup all ball connections
     for Ball, BallData in pairs(ActiveBalls) do
         if BallData.Connections.Position and BallData.Connections.Position.Connected then
             BallData.Connections.Position:Disconnect()
@@ -240,20 +189,10 @@ local function Cleanup()
     end
     ActiveBalls = {}
     
-    -- Destroy UI
     UI:Destroy()
-    
-    if Config.Debug then
-        print("[PARRY] System cleaned up successfully")
-    end
 end
 
--- Cleanup when player leaves (if applicable)
 Player.Destroying:Connect(Cleanup)
-
--- ============================================
--- RETURN SYSTEM TABLE (for reloading)
--- ============================================
 
 return {
     IsEnabled = function() return SystemEnabled end,
@@ -262,6 +201,4 @@ return {
         UI:SetStatus(SystemEnabled and "ACTIVE" or "DISABLED")
     end,
     Cleanup = Cleanup,
-    Config = Config,
-    ActiveBalls = ActiveBalls,
 }
