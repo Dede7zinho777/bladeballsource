@@ -28,10 +28,10 @@
 -- CONFIGURATION: UPDATE THESE URLS
 -- ============================================
 local URLS = {
-    CONFIG = "https://raw.githubusercontent.com/YOUR_USERNAME/ParrySystem/main/ParryConfig_Executor.lua",
-    UTILS = "https://raw.githubusercontent.com/YOUR_USERNAME/ParrySystem/main/ParryUtils_Executor.lua",
-    UI = "https://raw.githubusercontent.com/YOUR_USERNAME/ParrySystem/main/ParryUI_Executor.lua",
-    MAIN = "https://raw.githubusercontent.com/YOUR_USERNAME/ParrySystem/main/ParryMain_Executor.lua",
+    CONFIG = "https://raw.githubusercontent.com/Dede7zinho777/bladeballsource/refs/heads/main/ParryConfig_Executor.lua",
+    UTILS = "https://raw.githubusercontent.com/Dede7zinho777/bladeballsource/refs/heads/main/ParryUtils_Executor.lua",
+    UI = "https://raw.githubusercontent.com/Dede7zinho777/bladeballsource/refs/heads/main/ParryUI_Executor.lua",
+    MAIN = "https://raw.githubusercontent.com/Dede7zinho777/bladeballsource/refs/heads/main/ParryMain_Executor.lua",
 }
 
 -- ============================================
