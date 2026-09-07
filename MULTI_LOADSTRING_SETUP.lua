@@ -1,60 +1,13 @@
--- ============================================
--- SISTEMA DE PARRY - VERSÃO CORRIGIDA
--- Compatível com Xeno, Synapse, Script-Ware
--- ============================================
+--[[
+    ROBLOX PARRY SYSTEM - XENO EDITION
+    Versão corrigida para funcionar no Xeno
+]]
 
 print("[PARRY] 🔄 Carregando Sistema de Parry...")
 
--- 1. FUNÇÃO UNIVERSAL PARA BAIXAR
-local function DownloadScript(url)
-    local methods = {
-        -- Método 1: game:HttpGet (mais comum)
-        function()
-            return game:HttpGet(url)
-        end,
-        
-        -- Método 2: HttpService
-        function()
-            local http = game:GetService("HttpService")
-            if http.HttpEnabled then
-                return http:GetAsync(url)
-            end
-        end,
-        
-        -- Método 3: syn.request (Synapse X)
-        function()
-            if syn and syn.request then
-                local response = syn.request({
-                    Url = url,
-                    Method = "GET"
-                })
-                return response.Body
-            end
-        end,
-        
-        -- Método 4: request (Script-Ware / Xeno)
-        function()
-            if request then
-                local response = request({
-                    Url = url,
-                    Method = "GET"
-                })
-                return response.Body
-            end
-        end
-    }
-    
-    for i, method in ipairs(methods) do
-        local success, result = pcall(method)
-        if success and result and type(result) == "string" and #result > 10 then
-            return result
-        end
-    end
-    
-    error("[PARRY] ❌ Não foi possível baixar: " .. url)
-end
-
--- 2. URLS
+-- ============================================
+-- URLs CORRETAS (seu repositório)
+-- ============================================
 local URLS = {
     CONFIG = "https://raw.githubusercontent.com/Dede7zinho777/bladeballsource/refs/heads/main/ParryConfig_Executor.lua",
     UTILS = "https://raw.githubusercontent.com/Dede7zinho777/bladeballsource/refs/heads/main/ParryUtils_Executor.lua",
@@ -62,39 +15,55 @@ local URLS = {
     MAIN = "https://raw.githubusercontent.com/Dede7zinho777/bladeballsource/refs/heads/main/ParryMain_Executor.lua",
 }
 
--- 3. CARREGAR MÓDULOS
-local function LoadModule(url, name)
-    print("[PARRY] 📥 Baixando " .. name .. "...")
-    local code = DownloadScript(url)
-    local module = loadstring(code)
-    if not module then
-        error("[PARRY] ❌ Erro ao compilar " .. name)
+-- ============================================
+-- FUNÇÃO DE DOWNLOAD PARA XENO
+-- ============================================
+local function LoadFromURL(url)
+    local success, content = pcall(function()
+        return game:HttpGet(url)  -- Xeno usa game:HttpGet
+    end)
+    
+    if not success then
+        error("[PARRY] ❌ Erro ao baixar: " .. url)
     end
-    return module()
+    
+    return content
 end
 
--- Criar sistema global
-if not _G.ParrySystem then
-    _G.ParrySystem = {}
-end
+-- ============================================
+-- CARREGAR MÓDULOS
+-- ============================================
+print("[PARRY] 📥 Baixando Config...")
+local ConfigScript = LoadFromURL(URLS.CONFIG)
+local Config = loadstring(ConfigScript)()
+if not Config then error("[PARRY] ❌ Config falhou") end
+_G.ParryConfig = Config
+print("[PARRY] ✅ Config carregado")
 
--- Carregar tudo
-local Config = LoadModule(URLS.CONFIG, "Config")
-_G.ParrySystem.Config = Config
+print("[PARRY] 📥 Baixando Utils...")
+local UtilsScript = LoadFromURL(URLS.UTILS)
+_G.ParryConfig = Config
+local Utils = loadstring(UtilsScript)()
+if not Utils then error("[PARRY] ❌ Utils falhou") end
+_G.ParryUtils = Utils
+print("[PARRY] ✅ Utils carregado")
 
-_G.ParrySystem.Config = Config
-local Utils = LoadModule(URLS.UTILS, "Utils")
-_G.ParrySystem.Utils = Utils
+print("[PARRY] 📥 Baixando UI...")
+local UIScript = LoadFromURL(URLS.UI)
+_G.ParryConfig = Config
+local UI = loadstring(UIScript)()
+if not UI then error("[PARRY] ❌ UI falhou") end
+_G.ParryUI = UI
+print("[PARRY] ✅ UI carregado")
 
-_G.ParrySystem.Config = Config
-local UI = LoadModule(URLS.UI, "UI")
-_G.ParrySystem.UI = UI
-
-_G.ParrySystem.Config = Config
-_G.ParrySystem.Utils = Utils
-_G.ParrySystem.UI = UI
-local Main = LoadModule(URLS.MAIN, "Main")
-_G.ParrySystem.Main = Main
+print("[PARRY] 📥 Baixando Main...")
+local MainScript = LoadFromURL(URLS.MAIN)
+_G.ParryConfig = Config
+_G.ParryUtils = Utils
+_G.ParryUI = UI
+local Main = loadstring(MainScript)()
+if not Main then error("[PARRY] ❌ Main falhou") end
+print("[PARRY] ✅ Main carregado")
 
 print("[PARRY] ========================================")
 print("[PARRY] ✅ SISTEMA DE PARRY ATIVADO!")
