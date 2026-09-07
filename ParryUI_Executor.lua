@@ -1,44 +1,30 @@
 --[[
-    PARRY SYSTEM - UI MODULE (EXECUTOR EDITION)
-    For use with multi-loadstring setup
-    
-    Place on GitHub and load via URLS.UI
-    Requires _G.ParryConfig to be set before loading
+    PARRY SYSTEM - INTERFACE (XENO EDITION)
 ]]
 
-local Config = _G.ParryConfig or error("[PARRY] Config not found in _G.ParryConfig")
+local Config = _G.ParryConfig or error("[PARRY] Config não encontrado")
 local UI = {}
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Player = Players.LocalPlayer
 
--- UI element references
 local ScreenGui = nil
 local StatusLabel = nil
 local InfoLabel = nil
 local FlashFrame = nil
 
 -- ============================================
--- UI INITIALIZATION
+-- INICIALIZAR UI
 -- ============================================
 
 function UI:Init()
-    --[[
-        Creates the visual overlay with:
-        - Status indicator
-        - Distance/Velocity/Impact time display
-        - Flash effect on parry
-    ]]
-    
     if not Config.UIEnabled then
-        if Config.Debug then
-            print("[PARRY] UI disabled in config")
-        end
+        if Config.Debug then print("[PARRY] UI desativada") end
         return
     end
     
-    -- Wait for PlayerGui with timeout
+    -- Aguardar PlayerGui
     local PlayerGui = nil
     local Attempts = 0
     while not PlayerGui and Attempts < 10 do
@@ -49,26 +35,24 @@ function UI:Init()
     end
     
     if not PlayerGui then
-        warn("[PARRY] PlayerGui not found")
+        warn("[PARRY] PlayerGui não encontrado")
         return
     end
     
-    -- Cleanup existing UI
+    -- Limpar UI antiga
     pcall(function()
         local ExistingGui = PlayerGui:FindFirstChild("ParrySystemUI")
-        if ExistingGui then
-            ExistingGui:Destroy()
-        end
+        if ExistingGui then ExistingGui:Destroy() end
     end)
     
-    -- =========== MAIN GUI ===========
+    -- Criar ScreenGui
     ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "ParrySystemUI"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = PlayerGui
     
-    -- =========== BACKGROUND PANEL ===========
+    -- Fundo
     local Background = Instance.new("Frame")
     Background.Name = "Background"
     Background.BackgroundColor3 = Config.ColorBackground
@@ -78,18 +62,18 @@ function UI:Init()
     Background.Position = Config.UIPosition
     Background.Parent = ScreenGui
     
-    -- Corner radius effect
+    -- Cantos arredondados
     local BorderCorner = Instance.new("UICorner")
     BorderCorner.CornerRadius = UDim.new(0, 8)
     BorderCorner.Parent = Background
     
-    -- Border outline
+    -- Borda
     local BorderStroke = Instance.new("UIStroke")
     BorderStroke.Color = Config.ColorActive
     BorderStroke.Thickness = 2
     BorderStroke.Parent = Background
     
-    -- =========== STATUS LABEL ===========
+    -- Status
     StatusLabel = Instance.new("TextLabel")
     StatusLabel.Name = "StatusLabel"
     StatusLabel.BackgroundTransparency = 1
@@ -101,7 +85,7 @@ function UI:Init()
     StatusLabel.Position = UDim2.new(0, 8, 0, 8)
     StatusLabel.Parent = Background
     
-    -- =========== INFO LABEL ===========
+    -- Informações
     InfoLabel = Instance.new("TextLabel")
     InfoLabel.Name = "InfoLabel"
     InfoLabel.BackgroundTransparency = 1
@@ -115,7 +99,7 @@ function UI:Init()
     InfoLabel.TextYAlignment = Enum.TextYAlignment.Top
     InfoLabel.Parent = Background
     
-    -- =========== FLASH EFFECT ===========
+    -- Flash (efeito de parry)
     FlashFrame = Instance.new("Frame")
     FlashFrame.Name = "FlashEffect"
     FlashFrame.BackgroundColor3 = Config.ColorParry
@@ -128,28 +112,20 @@ function UI:Init()
     FlashCorner.CornerRadius = UDim.new(0, 8)
     FlashCorner.Parent = FlashFrame
     
-    if Config.Debug then
-        print("[PARRY] UI initialized successfully")
-    end
+    if Config.Debug then print("[PARRY] UI inicializada") end
 end
 
 -- ============================================
--- UI UPDATE FUNCTIONS
+-- ATUALIZAR UI
 -- ============================================
 
 function UI:UpdateBallInfo(Distance, Velocity, ImpactTime)
-    --[[
-        Updates the info display with current ball metrics
-        Color changes based on danger level
-    ]]
-    
     if not InfoLabel then return end
     
     local DistText = string.format("%.1f", math.max(0, Distance))
     local VelText = string.format("%.1f", math.max(0, Velocity))
     local ImpactText = string.format("%.2f", math.max(0, ImpactTime))
     
-    -- Update status color based on impact time
     if StatusLabel then
         if ImpactTime <= 0.5 then
             StatusLabel.TextColor3 = Config.ColorDanger
@@ -158,7 +134,6 @@ function UI:UpdateBallInfo(Distance, Velocity, ImpactTime)
         end
     end
     
-    -- Update info text
     InfoLabel.Text = string.format(
         "Distance: %s m\nVelocity: %s m/s\nImpact: %s s",
         DistText, VelText, ImpactText
@@ -166,43 +141,24 @@ function UI:UpdateBallInfo(Distance, Velocity, ImpactTime)
 end
 
 function UI:FlashParry()
-    --[[
-        Triggers parry flash effect animation
-        Quick cyan flash then fade
-    ]]
-    
     if not FlashFrame then return end
     
-    -- Set initial transparency
     FlashFrame.BackgroundTransparency = 0.3
     
-    -- Create tween back to transparent
-    local TweenInfo = TweenInfo.new(
-        0.15,
-        Enum.EasingStyle.Quad,
-        Enum.EasingDirection.Out
+    local Tween = TweenService:Create(
+        FlashFrame,
+        TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {BackgroundTransparency = 1}
     )
-    
-    local Tween = TweenService:Create(FlashFrame, TweenInfo, {
-        BackgroundTransparency = 1
-    })
     
     Tween:Play()
     
-    -- Cleanup
     Tween.Completed:Connect(function()
-        pcall(function()
-            Tween:Destroy()
-        end)
+        pcall(function() Tween:Destroy() end)
     end)
 end
 
 function UI:SetStatus(Status)
-    --[[
-        Sets the status text
-        Status: "ACTIVE" or "DISABLED"
-    ]]
-    
     if not StatusLabel then return end
     
     StatusLabel.Text = Status
@@ -214,39 +170,14 @@ function UI:SetStatus(Status)
     end
 end
 
-function UI:UpdateHealth(HealthPercent)
-    --[[
-        Updates status with HP percentage
-        Used on character respawn
-    ]]
-    
-    if not StatusLabel then return end
-    StatusLabel.Text = string.format("HP: %.0f%%", HealthPercent)
-end
-
--- ============================================
--- CLEANUP
--- ============================================
-
 function UI:Destroy()
-    --[[
-        Cleans up the GUI from the screen
-    ]]
-    
     if ScreenGui then
-        pcall(function()
-            ScreenGui:Destroy()
-        end)
+        pcall(function() ScreenGui:Destroy() end)
         ScreenGui = nil
     end
-    
     StatusLabel = nil
     InfoLabel = nil
     FlashFrame = nil
-    
-    if Config.Debug then
-        print("[PARRY] UI destroyed")
-    end
 end
 
 return UI
